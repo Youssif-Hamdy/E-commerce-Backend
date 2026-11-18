@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// Categories
+// ─────────────────────────────────────────────
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  isActive    Boolean   @default(true)  @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt      @map("updated_at")
+  products    Product[]
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────
+// Products
+// ─────────────────────────────────────────────
+model Product {
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  priceCents  Int       @map("price_cents")
+  stock       Int       @default(0)
+  isActive    Boolean   @default(true) @map("is_active")
+  categoryId  String?   @map("category_id") @db.Uuid
+  category    Category? @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt      @map("updated_at")
+
+  images     ProductImage[]
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fileId    String   @map("file_id")
+  filePath  String   @map("file_path")
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([productId, position])
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────
+// Orders
+// ─────────────────────────────────────────────
+model Order {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderNumber     BigInt   @map("order_number")
+  customerName    String   @map("customer_name")
+  customerEmail   String   @map("customer_email")
+  customerPhone   String   @map("customer_phone")
+  shippingAddress String   @map("shipping_address")
+  totalCents      Int      @map("total_cents")
+  currency        String   @default("EGP")
+  orderStatus     String   @default("created") @map("order_status")
+  paymentStatus   String   @default("pending") @map("payment_status")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt      @map("updated_at")
+
+  items           OrderItem[]
+  paymentAttempts PaymentAttempt[]
+
+  @@index([paymentStatus, expiresAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  orderId        String  @map("order_id") @db.Uuid
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String  @map("product_id") @db.Uuid
+  product        Product @relation(fields: [productId], references: [id])
+  nameSnapshot   String  @map("name_snapshot")
+  unitPriceCents Int     @map("unit_price_cents")
+  quantity       Int
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────
+// Payments
+// ─────────────────────────────────────────────
+model PaymentAttempt {
+  id              String    @id @default(uuid()) @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  order           Order     @relation(fields: [orderId], references: [id])
+  provider        String
+  providerOrderId String?   @map("provider_order_id")
+  providerTxnId   String?   @map("provider_txn_id")
+  method          String?
+  amountCents     Int       @map("amount_cents")
+  status          String    @default("pending")
+  failureReason   String?   @map("failure_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  paidAt          DateTime? @map("paid_at")
+
+  refunds Refund[]
+
+  @@unique([provider, providerTxnId])
+  @@index([orderId])
+  @@index([provider, providerOrderId])
+  @@map("payment_attempts")
+}
+
+model WebhookEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  provider       String
+  eventKey       String   @unique @map("event_key")
+  rawPayload     String   @map("raw_payload")
+  signatureValid Boolean? @map("signature_valid")
+  processed      Boolean  @default(false)
+  receivedAt     DateTime @default(now()) @map("received_at")
+
+  @@map("webhook_events")
+}
+
+model Refund {
+  id          String         @id @default(uuid()) @db.Uuid
+  attemptId   String         @map("attempt_id") @db.Uuid
+  attempt     PaymentAttempt @relation(fields: [attemptId], references: [id])
+  amountCents Int            @map("amount_cents")
+  reason      String
+  createdBy   String         @map("created_by")
+  status      String         @default("pending")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@map("refunds")
+}
+
+// ─────────────────────────────────────────────
+// Auth — Refresh Tokens
+// ─────────────────────────────────────────────
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  adminUser String    @map("admin_user")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([adminUser])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actor     String
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

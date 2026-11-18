@@ -18,7 +18,39 @@ export const app = express();
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: env.CLIENT_URL }));
+// إعدادات CORS المرنة لدعم الفرونت على localhost بأي port + أي دومين مضاف في CLIENT_URL
+const allowedOrigins = env.CLIENT_URL
+  ? env.CLIENT_URL.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // السماح بطلبات الـ API tools (Postman, curl) أو طلبات بدون origin
+      if (!origin) return callback(null, true);
+
+      // السماح بأي بورت على localhost أو 127.0.0.1 (مثل 5173, 5174, 3000)
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // لو CLIENT_URL محطوط نجمة (*)
+      if (allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+
+      // لو الـ origin موجود في الـ list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
+  }),
+);
 if (env.NODE_ENV !== 'test') app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ⚠️ الـ webhooks لازم قبل express.json() عشان نحافظ على الـ raw body

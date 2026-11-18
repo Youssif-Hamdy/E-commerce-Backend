@@ -1,5 +1,7 @@
-node_modules
-.env
-*.log
 node_modules/
 dist/
+.env
+*.log
+
+# Prisma generated (Vercel بيولّده بـ postinstall)
+node_modules/.prisma/

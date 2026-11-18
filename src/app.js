@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import { env } from './config/env.js';
+import { prisma } from './config/prisma.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 import { publicRouter as productsPublic, adminRouter as productsAdmin } from './modules/products/products.routes.js';
@@ -25,7 +26,10 @@ app.use('/webhooks', webhooksRoutes);
 
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', env: env.NODE_ENV }));
+app.get('/health', async (_req, res) => {
+  await prisma.$queryRaw`SELECT 1`;
+  res.json({ status: 'ok', env: env.NODE_ENV });
+});
 
 // ─── Public Routes ──────────────────────────────────────────────
 app.use('/api/products',   productsPublic);

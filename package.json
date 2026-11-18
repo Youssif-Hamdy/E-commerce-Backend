@@ -10,9 +10,10 @@
     "dev": "node --watch --env-file=.env src/server.js",
     "start": "node src/server.js",
     "migrate": "node --env-file=.env src/db/migrate.js",
-    "contract:emit": "prisma contract emit"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.3.0",
@@ -26,7 +27,6 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@prisma/client": "^5.22.0",
     "@types/node": "^26.6.6",
     "prisma": "^5.22.0"
   }

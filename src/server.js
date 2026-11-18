@@ -1,17 +1,23 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
-import { pool } from './config/db.js';
 
-const server = app.listen(env.PORT, () => {
-  console.log(`🚀 http://localhost:${env.PORT}  (${env.NODE_ENV})`);
-});
+// Vercel: بيستخدم الـ default export كـ serverless handler
+export default app;
 
-async function shutdown(signal) {
-  console.log(`\n${signal} — بقفل السيرفر...`);
-  server.close(async () => {
-    await pool.end();
-    process.exit(0);
+// Local dev: بنشغّل السيرفر عادي
+if (process.env.VERCEL !== '1') {
+  const { pool } = await import('./config/db.js');
+  const server = app.listen(env.PORT, () => {
+    console.log(`🚀 http://localhost:${env.PORT}  (${env.NODE_ENV})`);
   });
+
+  async function shutdown(signal) {
+    console.log(`\n${signal} — بقفل السيرفر...`);
+    server.close(async () => {
+      await pool.end();
+      process.exit(0);
+    });
+  }
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));

@@ -31,6 +31,15 @@ app.get('/health', async (_req, res) => {
   res.json({ status: 'ok', env: env.NODE_ENV });
 });
 
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'E-Commerce API',
+    version: '0.1.0',
+    status: 'running',
+    docs: '/health',
+  });
+});
+
 // ─── Public Routes ──────────────────────────────────────────────
 app.use('/api/products',   productsPublic);
 app.use('/api/categories', categoriesPublic);
